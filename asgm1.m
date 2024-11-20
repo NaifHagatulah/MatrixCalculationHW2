@@ -3,19 +3,26 @@ clear; close all; format long;
 alpha=5; n=100; rand('state',5);
 A = sprand(n,n,0.5);
 A = A + alpha*speye(n); A=A/norm(A,1);
-x = rand(n,1);
-hej
-iterations = 100;
-x_approx = zeros(iterations,1);
+b = rand(n,1);
 
+
+correct = A\b;
+iterations = 10;
+x_approx = zeros(iterations,1);
+x0 = zeros(n,1);
+r0 =  b  - A*x0; 
+error = zeros(iterations, 1);
+error(1) = norm(x0 - correct) / norm(correct);
 for m = 2:iterations
+
     e1 = [1; zeros(m,1)];
-    [Q, H] = arnoldi(A,x,m);
-    z = (H\e1)*norm(x);
-    x = Q(:,1:m)*z
+    [Q, H] = arnoldi(A,r0,m);
+    z = (H\e1)*norm(b);
+    x = Q(:,1:m)*z;
+    error(m) = norm(x - correct) / norm(correct);
 end
 
-
+semilogy(1:iterations, error)
 
 
 
