@@ -4,7 +4,7 @@ alpha=5; n=100; rand('state',5);
 A = sprand(n,n,0.5);
 A = A + alpha*speye(n); A=A/norm(A,1);
 x = rand(n,1);
-
+hej
 iterations = 100;
 x_approx = zeros(iterations,1);
 
