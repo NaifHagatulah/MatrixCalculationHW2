@@ -1,28 +1,19 @@
 clear; close all; format long;
 
-alpha=5; n=100; rand('state',5);
+n=100; rand('state',5);
 A = sprand(n,n,0.5);
-A = A + alpha*speye(n); A=A/norm(A,1);
-b = rand(n,1);
 
-
-correct = A\b;
-iterations = 10;
-x_approx = zeros(iterations,1);
-x0 = zeros(n,1);
-r0 =  b  - A*x0; 
-error = zeros(iterations, 1);
-error(1) = norm(x0 - correct) / norm(correct);
-for m = 2:iterations
-
-    e1 = [1; zeros(m,1)];
-    [Q, H] = arnoldi(A,r0,m);
-    z = (H\e1)*norm(b);
-    x = Q(:,1:m)*z;
-    error(m) = norm(x - correct) / norm(correct);
+%% 1a)
+iterations = 30;
+for alpha = [1, 5, 10, 100]
+    A = A + alpha*speye(n); A=A/norm(A,1);
+    b = rand(n,1);
+    [error, x_approx] = GMRES(A, b, iterations);
+    figure;
+    semilogy(1:iterations, error)
+    title(alpha)
 end
 
-semilogy(1:iterations, error)
 
 
 
@@ -74,9 +65,25 @@ semilogy(1:iterations, error)
 
 
 
+function[error, x_approx] = GMRES(A,b,iterations)
+    correct = A\b;
+    n = length(b);
+    x_approx = zeros(n, iterations);
+    x_approx(:, 1) = zeros(n,1);
+    r0 =  b  - A*x_approx(:,1); 
+    error = zeros(iterations, 1);
+    error(1) = norm(x_approx(:,1) - correct) / norm(correct);
+    
+    for m = 2:iterations
 
+        e1 = [1; zeros(m,1)];
+        [Q, H] = arnoldi(A,r0,m);
+        z = (H\e1)*norm(b);
+        x_approx(:,m) = Q(:,1:m)*z;
+        error(m) = norm(x_approx(:,m) - correct) / norm(correct);
+    end
 
-
+end
 
 
 
