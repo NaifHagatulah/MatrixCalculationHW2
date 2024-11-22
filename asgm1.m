@@ -23,7 +23,7 @@ end
 
 
 %% 1b)
-close all;
+%close all;
 bound = zeros(4,1);
 for i = 1:4
     A = sprand(n,n,0.5);
@@ -39,11 +39,10 @@ for i = 1:4
     figure;
     hold on;
     plot(x_circle, y_circle, "k--", 'MarkerSize', 15); % Plot the circle with dashed red lines
-    plot(lambda,"*")
-    plot(center, center + radius)
+    plot(real(diag(lambda)), imag(diag(lambda)),"*")
     axis equal;
     title(alpha)
-    legend('Eigenvalues', 'Circle')
+    legend( 'Circle', 'Eigenvalues')
     
 end
 
@@ -102,11 +101,12 @@ for alpha = alphas
         % GMRES timing and residual norm
         for m = iterations
             tic;
-            [~, x_gmres, res_norm_gmres] = GMRES(A, b, m); % Call your GMRES function
+            x_approx = GMRES_opt(A, b, m); 
             gmres_time = toc;
+
             
             % Store GMRES results
-            gmres_results(alpha, n, m).resnorm = norm(A * x_gmres - b);
+            gmres_results(alpha, n, m).resnorm = norm(A*x_approx - b) / norm(b);
             gmres_results(alpha, n, m).time = gmres_time;
         end
         
@@ -201,6 +201,15 @@ function[error, x_approx, res_norm] = GMRES(A,b,iterations)
         res_norm(m) = norm(A*x_approx(:,m) - b) / norm(b);
     end
 
+end
+
+function[x_approx] = GMRES_opt(A,b, m)
+    x_approx = zeros(length(b), 1);
+    r0 =  b  - A*x_approx;
+    [Q, H] = arnoldi(A,r0,m);     
+    e1 = [1; zeros(m,1)];  
+    z = (H\e1)*norm(b);
+    x_approx = Q(:,1:m)*z;
 end
 
 
