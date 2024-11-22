@@ -80,6 +80,7 @@ end
 
 
 
+%%1c)
 
 % Parameters
 alphas = [1, 100];
@@ -120,6 +121,18 @@ for alpha = alphas
     end
 end
 
+% Display results
+
+for alpha = alphas
+    for n = n_values
+        fprintf('Results for alpha = %d, n = %d\n', alpha, n);
+        fprintf('m\tGMRES Residual Norm\tGMRES Time\tBackslash Residual Norm\tBackslash Time\n');
+        for m = iterations
+            fprintf('%d\t%.4e\t%.4e\t%.4e\t%.4e\n', m, gmres_results(alpha, n, m).resnorm, gmres_results(alpha, n, m).time, backslash_results(alpha, n).resnorm, backslash_results(alpha, n).time);
+        end
+        fprintf('\n');
+    end
+end
 
 
 
