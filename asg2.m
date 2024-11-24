@@ -5,6 +5,7 @@ A = -spdiags([e -6*e e], -1:1, n, n);
 b = kron(ones(n/2,1),[0;1])+ones(n,1);
 
 it = 50;
+%{
 alpha = zeros(it,1);
 x = zeros(size(b,1),it);
 r = zeros(size(b,1),it);
@@ -17,6 +18,7 @@ cg_res_norm = zeros(it,1);
 cg_res_norm(1) = norm(A*x(:,1) - b) / norm(b);
 z_err(1) = norm(A*z(:,1) - b) / norm(b);
 r(:, 1) = b;
+rLSQ(:,1)
 p(:, 1) = r(1);
 for m = 2:it
     tic
@@ -30,35 +32,11 @@ for m = 2:it
     z(1:m,m) = (A*x(:,1:m))'*A*x(:,1:m)\(A*x(:,1:m))'*b;
     z_err(m) = norm(A*z(:,m) - b) / norm(b);
 end 
-%CG least square
+%}
 
-
-% Matrix X contains all the iterates from CG
-X = x(:, 1:it); % Take up to `it` CG iterates
-
-% Form the least squares problem
-AX = A * X;             % Compute A applied to all iterates in X
-normal_matrix = AX' * AX; % Normal equations matrix (AX^T * AX)
-rhs = AX' * b;          % Right-hand side (AX^T * b)
-
-% Solve for z using the normal equations
-z = normal_matrix \ rhs;
-
-% Compute the least squares solution x_ls
-x_ls = X * z;
-
-% Compute the residual norm
-residual_ls = norm(A * x_ls - b) / norm(b);
-
-% Output results
-fprintf('Residual norm for least squares solution: %.2e\n', residual_ls);
-
-
-
-
-
-
-
+[x_CG, rhist_CG] = CG(A,b,it,false);
+[x_CGNE, rhist_CGNE] = CG(A,b,it,true);
+[x_CGLSQ, rhist_CGLSQ] = CGLSQ2(A,b,it);
 
 
 [error, x_approx, res_norm, GMRES_times] = GMRES_timed(A,b,it);
@@ -70,9 +48,9 @@ legend("CG times", "GMRES times")
 figure;
 hold on
 semilogy(1:it, res_norm, 'r')
-semilogy(1:it, cg_res_norm, 'b')
-semilogy(1:it, z_err, 'g')
-legend('GMRES', 'CG', 'CG_LSQ')
+semilogy(1:it, rhist_CG, 'b')
+semilogy(1:it, rhist_CGLSQ, 'g')
+legend('GMRES', 'CG', 'CGNE')
 title('Conjugate Gradient Method vs GMRES')
 
 %% 1b)
@@ -144,8 +122,108 @@ title('Conjugate Gradient Method vs GMRES')
 
 
 
+function [x, rhist] = CG(A,b,N,NE)
+    if NE == true
+        AT = A';
+    else
+        AT = 1;
+    end
+    x = zeros(size(b));
+    r = AT*b;
+    p = r;
+    rhist = [];
+    for k = 1:N
+        rr = r'*r;
+        Ap = AT*A*p;
+        alpha = rr/(p'*Ap);
+        x = x + alpha*p;
+        r = r - alpha*Ap;
+        beta = (r'*r)/rr;
+        p = r + beta*p;
+        rhist = [rhist, norm(r)];
+    end
+end
 
+function [x, rhist] = CG2(A,b,N,NE)
+    if NE == true
+        AT = A';
+    else
+        AT = 1;
+    end
+    x = zeros(size(b,1),N);
+    r = AT*b;
+    p = r;
+    rhist = [];
+    for k = 1:N-1
+        rr = r'*r;
+        Ap = AT*A*p;
+        alpha = rr/(p'*Ap);
+        x(:,k+1) = x(:,k) + alpha*p;
+        r = r - alpha*Ap;
+        beta = (r'*r)/rr;
+        p = r + beta*p;
+        rhist = [rhist, norm(r)];
+    end
+end
 
+function [x, rhist] = CGLSQ2(A,b,N)
+    [X, ~] = CG2(A,b,N,false);
+    rhist = [];
+    for k=1:size(X,2)
+        AX = A*X;
+        z = (AX'*AX)\(AX'*b);
+        x = X*z;
+        rhist = [rhist, norm(A*x - b)];
+    end
+end
+
+function [x, rhist] = CGLSQ(A,b,N)
+    X = [zeros(size(b))];
+    z = zeros(size(X,2),1);
+    r = b;
+    p = r;
+    rhist = [];
+    for k = 1:N
+        disp("it " + k)
+        rr = r'*r;
+        Ap = A*p;
+        alpha = rr/(p'*Ap);
+        x= x + alpha*p;
+        X = [X, X*z];
+        disp(size(X))
+        r = r - alpha*Ap;
+        beta = (r'*r)/rr;
+        p = r + beta*p;
+        rhist = [rhist, norm(r)];
+    end
+    x = X(:,end);
+end
+
+function [x, rhist] = CGLSQ_N(A,b,N)
+    [x, rhist2] = CG(A,b,1,true);
+    X = [x];
+    X_it = [x];
+    z = zeros(size(X,2));
+    rhist = [];
+    for k = 2:N
+        B = A*X;
+        r = B'*b;
+        p = r;
+        rr = r'*r;
+        Bp = B'*B*p;
+        alpha = rr/(p'*Bp);
+        z = z + alpha*p;
+        X_it = [X_it, X*z];
+        r = r - alpha*Bp;
+        beta = (r'*r)/rr;
+        p = r + beta*p;
+        rhist = [rhist, norm(r)];
+        [x, rhist2] = CG(A,b,k,false);
+        X = [X, x];
+        z = zeros(k);
+    end
+    x = X(:,end);
+end
 
 function [Q,H, lambdaKrylov, lambdaArnoldi]=arnoldi(A,b,m)
     % [Q,H]=arnoldi_m(A,b,m)
