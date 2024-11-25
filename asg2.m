@@ -5,7 +5,7 @@ e = ones(n,1);
 A = -spdiags([e -6*e e], -1:1, n, n);
 b = kron(ones(n/2,1),[0;1])+ones(n,1);
 
-it = 50;
+it = 500;
 %{
 alpha = zeros(it,1);
 x = zeros(size(b,1),it);
@@ -36,13 +36,14 @@ end
 %}
 
 [x_CG, rhist_CG] = CG(A,b,it,false);
-[x_CGNE, rhist_CGNE] = CG(A,b,it,true);
+%[x_CGNE, rhist_CGNE] = CG(A,b,it,true);
 [x_CGLSQ, rhist_CGLSQ] = cgne(A,b,it);
+[x, rhist, res_norm_lsq] = CGLSQ(A,b,it);
 
 rhist_CGLSQ = rhist_CGLSQ(1:end); % CGLSQ has one more iteration than CG and CGNE
 
 
-[error, x_approx, res_norm, GMRES_times] = GMRES_timed(A,b,it);
+[x_approx, res_norm, GMRES_times] = GMRES_timed(A,b,it);
 %figure;
 %hold on
 %plot(1:it, cg_times, 'r')
@@ -50,13 +51,17 @@ rhist_CGLSQ = rhist_CGLSQ(1:end); % CGLSQ has one more iteration than CG and CGN
 %legend("CG times", "GMRES times")
 figure;
 hold on
-semilogy(1:it, res_norm, 'r')
+plot(1:it, log10(res_norm), 'r')
 
-semilogy(1:it, rhist_CG, 'b')
+plot(1:it, log10(rhist_CG), 'b')
 
-semilogy(1:it, rhist_CGLSQ, 'g')
+plot(1:it, log10(res_norm_lsq), 'g')
+
 legend('GMRES', 'CG', 'CGNE')
 title('Conjugate Gradient Method vs GMRES')
+
+
+
 
 %% 1b)
 
@@ -147,6 +152,7 @@ function [x, rhist] = CG(A,b,N,NE)
         p = r + beta*p;
         rhist = [rhist, norm(r)];
     end
+    disp("CG " + rhist(1))
 end
 
 
@@ -156,19 +162,21 @@ function [X_res, rhist] = cgne(A, b, m)
     for k = 1:m
         [~, ~, x_hist] = CG_matrix(A,b,k,false);
         B = A * x_hist;
+        if k==5
+            %disp(x_hist)
+        end
         if (det(B'*B) > 0.001)
             z = (B'*B)\(B'*b);
             X_res(:,k) = x_hist*z;
             x = x_hist * z;
             r = A*x - b;
-            disp(norm(r))
             rhist = [rhist, norm(r)];
         else
+            %disp("singular it " + k)
             X_res(:,k) = X_res(:,k-1);
             rhist = [rhist, rhist(k-1)];
         end
     end
-
 end
 
 
@@ -229,25 +237,30 @@ function [x, rhist] = CGLSQ2(A,b,N)
     end
 end
 
-function [x, rhist] = CGLSQ(A,b,N)
-    X = [zeros(size(b))];
-    z = zeros(size(X,2),1);
+function [x, rhist, res_norm] = CGLSQ(A,b,N)
+    X = [];
+    XLSQ = []; 
+    x = zeros(size(b));
     r = b;
     p = r;
     rhist = [];
     for k = 1:N
-        disp("it " + k)
         rr = r'*r;
         Ap = A*p;
         alpha = rr/(p'*Ap);
-        x= x + alpha*p;
-        X = [X, X*z];
-        disp(size(X))
+        x = x + alpha*p;
+        X = [X,x];
+        B = A*X;
+        z = (B'*B)\B'*b;
+        XLSQ = [XLSQ, X*z];
         r = r - alpha*Ap;
         beta = (r'*r)/rr;
         p = r + beta*p;
         rhist = [rhist, norm(r)];
+
     end
+    res_norm = vecnorm(A*XLSQ - b);
+    disp("CGLSQ " + res_norm(1))
     x = X(:,end);
 end
 
@@ -330,39 +343,40 @@ function [t, beta, worth] = repeatedGS(Q, w, k, s)
 end
 
 function[error, x_approx, res_norm] = GMRES(A,b,iterations)
-    correct = A\b;
+    %correct = A\b;
     n = length(b);
     x_approx = zeros(n, iterations);
     x_approx(:, 1) = zeros(n,1);
     r0 =  b  - A*x_approx(:,1); 
-    error = zeros(iterations, 1);
-    error(1) = norm(x_approx(:,1) - correct) / norm(correct);
+    %error = zeros(iterations, 1);
+    %error(1) = norm(x_approx(:,1) - correct) / norm(correct);
     res_norm = zeros(iterations, 1);
-    res_norm(1) = norm(A*x_approx(:,1) - b) / norm(b);
+    res_norm(1) = norm(A*x_approx(:,1) - b) %/ norm(b);
 
     for m = 2:iterations
 
         e1 = [1; zeros(m,1)];
         [Q, H] = arnoldi(A,r0,m);
-        z = (H\e1)*norm(b);
+        z = H\(e1*norm(b));
         x_approx(:,m) = Q(:,1:m)*z;
-        error(m) = norm(x_approx(:,m) - correct) / norm(correct);
-        res_norm(m) = norm(A*x_approx(:,m) - b) / norm(b);
+        %error(m) = norm(x_approx(:,m) - correct) / norm(correct);
+        res_norm(m) = norm(A*x_approx(:,m) - b); %/ norm(b);
     end
 
 end
 
 
-function[error, x_approx, res_norm, times] = GMRES_timed(A,b,iterations)
-    correct = A\b;
+function[x_approx, res_norm, times] = GMRES_timed(A,b,iterations)
+    %correct = A\b;
     n = length(b);
     x_approx = zeros(n, iterations);
     x_approx(:, 1) = zeros(n,1);
     r0 =  b  - A*x_approx(:,1); 
-    error = zeros(iterations, 1);
-    error(1) = norm(x_approx(:,1) - correct) / norm(correct);
+    %error = zeros(iterations, 1);
+    %error(1) = norm(x_approx(:,1) - correct) / norm(correct);
     res_norm = zeros(iterations, 1);
-    res_norm(1) = norm(A*x_approx(:,1) - b) / norm(b);
+    res_norm(1) = norm(A*x_approx(:,1) - b);
+    disp("GMRES " + res_norm(1))
     times = zeros(iterations, 1);
     for m = 2:iterations
         tic
@@ -370,8 +384,8 @@ function[error, x_approx, res_norm, times] = GMRES_timed(A,b,iterations)
         [Q, H] = arnoldi(A,r0,m);
         z = (H\e1)*norm(b);
         x_approx(:,m) = Q(:,1:m)*z;
-        error(m) = norm(x_approx(:,m) - correct) / norm(correct);
-        res_norm(m) = norm(A*x_approx(:,m) - b) / norm(b);
+        %error(m) = norm(x_approx(:,m) - correct) / norm(correct);
+        res_norm(m) = norm(A*x_approx(:,m) - b);
         times(m) = toc;
     end
 
