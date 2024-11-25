@@ -36,15 +36,17 @@ end
 
 [x_CG, rhist_CG] = CG(A,b,it,false);
 [x_CGNE, rhist_CGNE] = CG(A,b,it,true);
-[x_CGLSQ, rhist_CGLSQ] = CGLSQ2(A,b,it);
+[x_CGLSQ, rhist_CGLSQ] = cgne(A,b,it);
+
+rhist_CGLSQ = rhist_CGLSQ(1:end-1); % CGLSQ has one less iteration than CG and CGNE
 
 
 [error, x_approx, res_norm, GMRES_times] = GMRES_timed(A,b,it);
-figure;
-hold on
-plot(1:it, cg_times, 'r')
-plot(1:it, GMRES_times, 'b')
-legend("CG times", "GMRES times")
+%figure;
+%hold on
+%plot(1:it, cg_times, 'r')
+%plot(1:it, GMRES_times, 'b')
+%legend("CG times", "GMRES times")
 figure;
 hold on
 semilogy(1:it, res_norm, 'r')
@@ -141,6 +143,46 @@ function [x, rhist] = CG(A,b,N,NE)
         beta = (r'*r)/rr;
         p = r + beta*p;
         rhist = [rhist, norm(r)];
+    end
+end
+
+
+function [X_res, rhist] = cgne(A, b, m)
+    X_res = zeros(size(b,1),m);
+    for k = 1:m
+        [X_res(:,k), rhist, x_hist] = CG_matrix(A,b,k,true);
+        B = A * x_hist;
+        z = (B'*B)\(B'*b);
+        X_res(:,k) = x_hist*z;
+        x = x_hist * z;
+        r = A*x - b;
+        rhist = [rhist, norm(r)];
+    end
+
+end
+
+
+function [x, rhist, x_hist] = CG_matrix(A,b,N,NE)
+    if NE == true
+        AT = A';
+    else
+        AT = 1;
+    end
+    x = zeros(size(b));
+    x_hist = zeros(size(b,1),N);
+    r = AT*b;
+    p = r;
+    rhist = [];
+    for k = 1:N
+        rr = r'*r;
+        Ap = AT*A*p;
+        alpha = rr/(p'*Ap);
+        x = x + alpha*p;
+        r = r - alpha*Ap;
+        beta = (r'*r)/rr;
+        p = r + beta*p;
+        rhist = [rhist, norm(r)];
+        x_hist(:,k) = x;
     end
 end
 
@@ -287,7 +329,7 @@ function[error, x_approx, res_norm] = GMRES(A,b,iterations)
     error(1) = norm(x_approx(:,1) - correct) / norm(correct);
     res_norm = zeros(iterations, 1);
     res_norm(1) = norm(A*x_approx(:,1) - b) / norm(b);
-    
+
     for m = 2:iterations
 
         e1 = [1; zeros(m,1)];
