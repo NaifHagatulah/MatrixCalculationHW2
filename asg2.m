@@ -1,4 +1,5 @@
 %% conjugate gradient method for solving Ax=b
+
 close all;n=100;
 e = ones(n,1);
 A = -spdiags([e -6*e e], -1:1, n, n);
@@ -38,7 +39,7 @@ end
 [x_CGNE, rhist_CGNE] = CG(A,b,it,true);
 [x_CGLSQ, rhist_CGLSQ] = cgne(A,b,it);
 
-rhist_CGLSQ = rhist_CGLSQ(1:end-1); % CGLSQ has one less iteration than CG and CGNE
+rhist_CGLSQ = rhist_CGLSQ(1:end); % CGLSQ has one more iteration than CG and CGNE
 
 
 [error, x_approx, res_norm, GMRES_times] = GMRES_timed(A,b,it);
@@ -50,7 +51,9 @@ rhist_CGLSQ = rhist_CGLSQ(1:end-1); % CGLSQ has one less iteration than CG and C
 figure;
 hold on
 semilogy(1:it, res_norm, 'r')
+
 semilogy(1:it, rhist_CG, 'b')
+
 semilogy(1:it, rhist_CGLSQ, 'g')
 legend('GMRES', 'CG', 'CGNE')
 title('Conjugate Gradient Method vs GMRES')
@@ -131,8 +134,8 @@ function [x, rhist] = CG(A,b,N,NE)
         AT = 1;
     end
     x = zeros(size(b));
-    r = AT*b;
-    p = r;
+    r = AT*b; %AT = 1 if we have a symetric matrix
+    p = r; 
     rhist = [];
     for k = 1:N
         rr = r'*r;
@@ -149,14 +152,21 @@ end
 
 function [X_res, rhist] = cgne(A, b, m)
     X_res = zeros(size(b,1),m);
+    rhist = [];
     for k = 1:m
-        [X_res(:,k), rhist, x_hist] = CG_matrix(A,b,k,true);
+        [~, ~, x_hist] = CG_matrix(A,b,k,false);
         B = A * x_hist;
-        z = (B'*B)\(B'*b);
-        X_res(:,k) = x_hist*z;
-        x = x_hist * z;
-        r = A*x - b;
-        rhist = [rhist, norm(r)];
+        if (det(B'*B) > 0.001)
+            z = (B'*B)\(B'*b);
+            X_res(:,k) = x_hist*z;
+            x = x_hist * z;
+            r = A*x - b;
+            disp(norm(r))
+            rhist = [rhist, norm(r)];
+        else
+            X_res(:,k) = X_res(:,k-1);
+            rhist = [rhist, rhist(k-1)];
+        end
     end
 
 end

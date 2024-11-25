@@ -8,9 +8,9 @@ function compare_gmres_cgn(A, b)
     
     % Arrays to store results
     gmres_residuals = zeros(max_iter, 1);
-    cgn_residuals = zeros(max_iter, 1);
-    gmres_times = zeros(max_iter, 1);
-    cgn_times = zeros(max_iter, 1);
+    cgn_residuals =   zeros(max_iter, 1);
+    gmres_times =     zeros(max_iter, 1);
+    cgn_times =       zeros(max_iter, 1);
     
     % Initial time
     gmres_start = tic;
@@ -29,17 +29,18 @@ function compare_gmres_cgn(A, b)
     for k = 2:max_iter
         % GMRES
         gmres_start = tic;
-        x_gmres = GMRES_opt(A, b, k);
+        [error, x_gmres, res_norm] = GMRES(A, b, k);
         gmres_times(k) = gmres_times(k-1) + toc(gmres_start);
         gmres_residuals(k) = norm(A*x_gmres - b);
         
         % CGN
         cgn_start = tic;
-        [x_cgn, ~] = CG(A, b, k, true);
-        cgn_times(k) = cgn_times(k-1) + toc(cgn_start);
+        [x_cgn, r_hist] = CG(A, b, k, true);
+        cgn_times(k) =  toc(cgn_start);
         cgn_residuals(k) = norm(A*x_cgn - b);
     end
-    
+    disp(cgn_residuals(max_iter))
+    disp(r_hist(max_iter))
     % Plot results
     figure(1)
     semilogy(0:max_iter-1, gmres_residuals, 'b-', 'LineWidth', 1.5)
