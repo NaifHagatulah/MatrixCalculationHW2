@@ -180,7 +180,7 @@ end
 
 
 
-function[error, x_approx, res_norm] = GMRES(A,b,iterations)
+function [error, x_approx, res_norm] = GMRES(A,b,iterations)
     correct = A\b;
     n = length(b);
     x_approx = zeros(n, iterations);
