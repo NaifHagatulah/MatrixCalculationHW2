@@ -11,23 +11,16 @@ for i = 1:4
     A = A + alpha(i)*speye(n); A=A/norm(A,1);
     b = rand(n,1);
     [error, x_approx, res_norm] = GMRES(A, b, iterations);
-    [V, r, c] = circle(A);
-
-    outlier = max(abs(eig(full(A))));
-    outlier_factor = ((abs(outlier - c) + r) * abs(c)) / (abs(outlier) * r);
-    display("radius: " + r + " center: " + c + " radius center factor: " +  " alpha: " + alpha(i) )
-    convergence_factor = outlier_factor*norm(V)*norm(inv(V))*(r/abs(c)).^(1:iterations); %calc r without outqlier
     figure;
-    plot(1:iterations, convergence_factor)
-    hold on;
-    plot(1:iterations, error)
+    semilogy(1:iterations, error)
     title("Convergence for alpha = " + alpha(i))
+    hold on;
     xlabel("Iterations")
     ylabel("Magnitude")
-    plot(1:iterations, res_norm)
-    legend('Convergence bound', 'Relative Error', 'Relative Residual Norm')
-    set(gca, 'YScale', 'log')
-    saveas(gcf, "ConvergenceGMRESvsBackslashAlpha" + alpha(i) + ".png")
+    ylim([0, 1.2])
+    semilogy(1:iterations, res_norm)
+    legend('Relative Error', 'Relative Residual Norm')
+    %saveas(gcf, "ConvergenceGMRESvsBackslashAlpha" + alpha(i) + ".png")
 end
 
 
@@ -45,7 +38,7 @@ for i = 1:4
     eigenvalues = diag(lambda);
     
     % Compute circle parameters
-    [V, radius, center] = circle(A);
+    [radius, center] = circle(A);
     
     
     % Plot eigenvalues and enclosing circle
@@ -61,6 +54,7 @@ for i = 1:4
     legend('Eigenvalues', 'Enclosing Circle');
     xlabel("Real")
     ylabel("Imaginary")
+    ylim([0,])
     hold off;
     %saveas(gcf, "EigenvaluesAlpha" + alpha(i) + ".png")
 end
@@ -158,13 +152,11 @@ end
 
 
 
-function [V, second_biggest_radius, center] = circle(A)
+function [radius, center] = circle(A)
     [V, D] = eig(full(A));
     lambda = diag(D);
     center = mean(lambda);
-    radii = abs(lambda - center);
-    sorted_radii = sort(radii, 'descend');
-    second_biggest_radius = sorted_radii(2);
+    radius = max(abs(lambda - center));
 end
 
 

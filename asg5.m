@@ -2,75 +2,11 @@ load('cgn_illustration.mat')
 close all;
 format long;
 
-compare_gmres_cgn2(A, b)
-%[error, x_approx, res_norm] = GMRES(A,b,10);
-%[x_cgn, r_hist] = CG(A, b, 40, true);
-
+compare_gmres_cgn(A, b)
 
 % Main script to compare GMRES and CGN
 function compare_gmres_cgn(A, b)
-    max_iter = 10;  % Maximum iterations
-    
-    % Arrays to store results
-    gmres_residuals = zeros(max_iter, 1);
-    cgn_residuals =   zeros(max_iter, 1);
-    gmres_times =     zeros(max_iter, 1);
-    cgn_times =       zeros(max_iter, 1);
-    
-    % Initial time
-    gmres_start = tic;
-    x_gmres = zeros(size(b));
-    r0 = b - A*x_gmres;
-    gmres_times(1) = toc(gmres_start);
-    gmres_residuals(1) = norm(r0);
-    
-    cgn_start = tic;
-    [x_cgn, ~] = CG(A, b, 1, true);
-    
-    cgn_times(1) = toc(cgn_start);
-    cgn_residuals(1) = norm(A*x_cgn - b);
-    
-    % Main iteration loop
-    for k = 2:max_iter
-        % GMRES
-        gmres_start = tic;
-        [error, x_gmres, res_norm] = GMRES(A, b, k);
-        gmres_times(k) = gmres_times(k-1) + toc(gmres_start);
-        gmres_residuals(k) = norm(A*x_gmres - b);
-        
-        % CGN
-        cgn_start = tic;
-        [x_cgn, r_hist] = CG(A, b, k, true);
-        cgn_times(k) =  toc(cgn_start);
-        cgn_residuals(k) = norm(A*x_cgn - b);
-    end
-    disp(cgn_residuals(max_iter))
-    disp(r_hist(max_iter))
-    % Plot results
-    figure(1)
-    semilogy(0:max_iter-1, gmres_residuals, 'b-', 'LineWidth', 1.5)
-    hold on
-    semilogy(0:max_iter-1, cgn_residuals, 'r--', 'LineWidth', 1.5)
-    xlabel('Iteration')
-    ylabel('||Ax - b||_2')
-    legend('GMRES', 'CGN')
-    grid on
-    hold off
-    
-    figure(2)
-    semilogy(gmres_times, gmres_residuals, 'b-', 'LineWidth', 1.5)
-    hold on
-    semilogy(cgn_times, cgn_residuals, 'r--', 'LineWidth', 1.5)
-    xlabel('CPU-time (seconds)')
-    ylabel('||Ax - b||_2')
-    legend('GMRES', 'CGN')
-    grid on
-    hold off
-end
-
-% Main script to compare GMRES and CGN
-function compare_gmres_cgn2(A, b)
-    max_iter = 75;  % Maximum iterations
+    max_iter = 60;  % Maximum iterations
     
     % Arrays to store results
     gmres_residuals = zeros(max_iter, 1);
@@ -105,17 +41,17 @@ function compare_gmres_cgn2(A, b)
         cgn_times(k) =  toc(cgn_start);
         cgn_residuals(k) = r_hist(end);
     end
-    disp(cgn_residuals(end))
-    disp(gmres_residuals(end))
     % Plot results
     figure(1)
     semilogy(0:max_iter-1, gmres_residuals, 'b-', 'LineWidth', 1.5)
     hold on
-    semilogy(0:max_iter-1, cgn_residuals, 'r--', 'LineWidth', 1.5)
+    semilogy(0:max_iter-1, cgn_residuals, 'r-', 'LineWidth', 1.5)
     xlabel('Iteration')
     ylabel('||Ax - b||_2')
     legend('GMRES', 'CGN')
+    title('Convergence of GMRES and CGN')
     grid on
+    %saveas(gcf, "GMRES_CGN_Convergence.png")
     hold off
     
     figure(2)
@@ -125,7 +61,9 @@ function compare_gmres_cgn2(A, b)
     xlabel('CPU-time (seconds)')
     ylabel('||Ax - b||_2')
     legend('GMRES', 'CGN')
+    title('Computation time of GMRES and CGN')
     grid on
+    saveas(gcf, "CPUtime.png")
     hold off
 end
 
@@ -155,29 +93,6 @@ function [x, rhist] = CG(A,b,N,NE)
 end
 
 
-function[error, x_approx, res_norm] = GMRES(A,b,iterations)
-    correct = A\b;
-    n = length(b);
-    x_approx = zeros(n, iterations);
-    x_approx(:, 1) = zeros(n,1);
-    r0 =  b  - A*x_approx(:,1); 
-    error = zeros(iterations, 1);
-    error(1) = norm(x_approx(:,1) - correct) / norm(correct);
-    res_norm = zeros(iterations, 1);
-    res_norm(1) = norm(A*x_approx(:,1) - b) / norm(b);
-    
-    for m = 2:iterations
-
-        e1 = [1; zeros(m,1)];
-        [Q, H] = arnoldi(A,r0,m);
-        z = (H\e1)*norm(b);
-        x_approx(:,m) = Q(:,1:m)*z;
-        error(m) = norm(x_approx(:,m) - correct) / norm(correct);
-        res_norm(m) = norm(A*x_approx(:,m) - b) / norm(b);
-    end
-
-end
-
 function [x_approx, res_norm] = GMRES_opt(A,b, m)
     x_approx = zeros(length(b), 1);
     r0 =  b  - A*x_approx;
@@ -185,7 +100,7 @@ function [x_approx, res_norm] = GMRES_opt(A,b, m)
     e1 = [1; zeros(m,1)];  
     z = (H\e1)*norm(b);
     x_approx = Q(:,1:m)*z;
-    res_norm = norm(A*x_approx - b)/ norm(b);
+    res_norm = norm(A*x_approx - b);
 end
 
 
